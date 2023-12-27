@@ -1,0 +1,308 @@
+---
+title: "Mandatory Assignment 1 - STK9900"
+author: "Inger Grünbeck"
+date: "2023-03-12"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+For each exercise you will find a method and discussion section. The method section contains a quick description of what was coded, the code itself, and the output and plots. The discussion contains the interpretation of the results.   
+
+Importing libraries:  
+```{r package import}
+include = FALSE
+
+library(rcompanion)
+library(car)
+library(data.table)
+library(ggplot2)
+library(MASS)
+```
+
+# Exercise 1  
+
+Reading in the pollution dataset:  
+```{r read table}
+pollution=read.table("https://www.uio.no/studier/emner/matnat/math/STK4900/data/no2.txt", header=TRUE)
+
+```
+
+## a)  
+### Method:  
+We inspect the mean, median, standard deviation (sd), and the IQR in order to analyse variable log.no2. Further a histogram and boxplot of the variable are printed.  
+
+```{r descriptive statistics of no2}
+summary(pollution$log.no2)
+```
+
+The standard deviation:  
+```{r descriptive statistics of no2 - sd}
+sd(pollution$log.no2)
+```
+
+The IQR:  
+```{r descriptive statistics of no2 - IQR}
+IQR(pollution$log.no2)
+```
+
+The descriptive plots:
+```{r descriptive plots for no2}
+plotNormalHistogram(pollution$log.no2, main="Histogram of log.no2 with normal distribution")
+boxplot(pollution$log.no2)
+```
+
+We repeat this for the variable pollution$log.cars:  
+```{r descriptive statistics of cars}
+summary(pollution$log.cars)
+```
+
+The sd:  
+```{r descriptive statistics of cars - sd}
+sd(pollution$log.cars)
+```
+
+The IQR:  
+```{r descriptive statistics of cars - iqr}
+IQR(pollution$log.cars)
+```
+
+The descriptive plots:  
+```{r descriptive plot of cars}
+plotNormalHistogram(pollution$log.cars, main="Histogram of log.cars with normal distribution")
+boxplot(pollution$log.cars)
+```
+
+Finally, a scatterplot of the two variables is plotted in order to examine the correlation between the pollution level and the number of cars per hour. Also, the correlation of the variables is calculated:  
+```{r scatterplot of no2 and cars}
+plot(pollution$log.cars, pollution$log.no2)
+```
+
+The correlation between no2 and cars:  
+```{r correlation of no2 and cars}
+cor(pollution$log.cars, pollution$log.no2)
+```
+
+### Discussion:  
+
+
+## b)  
+### Method:  
+A linear model is fitted, with the NO2 levels as dependent and cars/hour as dependent variable:  
+```{r linear regression of no2}
+pollution.fit = lm(log.no2~log.cars, data=pollution)
+summary(pollution.fit)
+```
+
+The observations are plotted together with a line representing the fitted linear regression model:  
+```{r plot of regression}
+plot(pollution$log.cars, pollution$log.no2)
+abline(pollution.fit)
+```
+
+### Discussion: 
+R^2, the coefficient of determination, tells us how much of the of the variance present in the dependent variable can be explained by the model/the independent variables. A high R^2 value indicates that a high amount of the dependent variable's variance can be explained by the model, and therefore a good representation.  
+
+
+
+## c)  
+For a linear regression we assume:  
+* linearity between the dependent and independent variable  
+* Homoscedasticity - constant variance in the residuals  
+* Normally distributed residuals  
+* Uncorrelated errors (This assumptions I have not testes for, as this not has been part of the curriculum yet)  
+
+### Method:  
+For the first assumption,a CPR (component-plus-residual) plot was plotted:  
+```{r CPR plot - pollution}
+crPlots(pollution.fit)
+```
+
+For the homoscedasticity check, the residuals vs fitted values are plotted. If there is no systematic pattern in the residuals, the assumption is fulfilled.
+```{r homoscedasticity plots - pollution}
+plot(pollution.fit, 1)
+plot(pollution.fit, 3)
+```
+
+For the linearity assumption, one can use histograms, boxplots and Q-Q plots:
+```{r normal distribution check - pollution}
+plotNormalHistogram(pollution.fit$residuals, main="Histogram of residuals with normal distribution")
+boxplot(pollution.fit$residuals)
+plot(pollution.fit, 2)
+```
+
+### Discussion:  
+## d)  
+### Method:  
+I'm applying the backwards-method in order to exclude predictors in possible multiple models. I start by including all variables and exclude one and one based on their significance/p-value. The models are being evaluated based on the R^2. I test both applying a log-transformation to the variables, as well as including their the second degree terms.  
+
+Model 1: -> all variables  
+```{r model 1}
+pollution.fit.1=lm(log.no2~log.cars+temp+wind.speed+hour.of.day, data=pollution)
+summary(pollution.fit.1)
+```
+
+Model 3: -> remove hour.of.day  
+```{r model 3}
+pollution.fit.3=lm(log.no2~log.cars+temp+wind.speed, data=pollution)
+summary(pollution.fit.3)
+```
+
+Model 4: -> remove temp  
+```{r model 4}
+pollution.fit.4=lm(log.no2~log.cars+wind.speed, data=pollution)
+summary(pollution.fit.4)
+```
+
+In order to see if a log transformation might affect the relationship between the dependent and independent variables, the not transformed variables are also transformed. Temperature is not transformed, as it has negative values.  
+
+Model 5: -> all variables  
+```{r model 5}
+pollution.fit.5=lm(log.no2~log.cars+temp+log(wind.speed)+log(hour.of.day), data=pollution)
+summary(pollution.fit.5)
+```
+
+Model 6: -> remove log(hour.of.day)  
+```{r model 6}
+pollution.fit.6=lm(log.no2~log.cars+temp+log(wind.speed), data=pollution)
+summary(pollution.fit.6)
+```
+
+As model 6 has a lower R^2 than model 5, I don't continue excluding predictors. Instead I test if including the second degree term of the variables instead of log transforming them will improve the R^2.  
+
+Model 7: -> all variables + second degree terms  
+```{r model 7}
+pollution.fit.7=lm(log.no2~log.cars+I(log.cars^2)+temp+I(temp^2)+wind.speed+I(wind.speed^2)+hour.of.day+I(hour.of.day^2), data=pollution)
+summary(pollution.fit.7)
+```
+
+Model 8: -> remove hour.of.day^2  
+```{r model 8}
+pollution.fit.8=lm(log.no2~log.cars+I(log.cars^2)+temp+I(temp^2)+wind.speed+I(wind.speed^2)+hour.of.day, data=pollution)
+summary(pollution.fit.8)
+```
+
+Model 9: -> remove temp^2  
+```{r model 9}
+pollution.fit.9=lm(log.no2~log.cars+I(log.cars^2)+temp+wind.speed+I(wind.speed^2)+hour.of.day, data=pollution)
+summary(pollution.fit.9)
+```
+
+Model 10: -> remove log.cars  
+```{r model 10}
+pollution.fit.10=lm(log.no2~I(log.cars^2)+temp+wind.speed+I(wind.speed^2)+hour.of.day, data=pollution)
+summary(pollution.fit.10)
+```
+
+Model 11: -> remove hour.of.day  
+```{r model 11}
+pollution.fit.11=lm(log.no2~I(log.cars^2)+temp+wind.speed+I(wind.speed^2), data=pollution)
+summary(pollution.fit.11)
+```
+
+I finish excluding predictors as the R^2 keeps decreasing.  
+
+### Discussion:  
+Based on the models, log-transforming the variables will slightly improve the R^2 of the best non-transformed model (model 1: 0.4658, model 5: 0.4807). Both models included all variables, but we can see that the model's R^2 does not decrease a lot when removing hour of day. Model 7 includes the second degree term of all variables, and results in a R^2=0.5036. But in model 11 we can see that we can remove some of the variables in model 7 and still achieve a relative high R^2 value, 0.4925. I choose to continue with model 11, as this model is also less complex/includes less variables than example model 7.  
+
+## e)  
+### Method:  
+In order to check the assumptions for model 11, I use the same methods as in Excersice 1c) -> plotting CPR plots for the independent variables to check for linear relationships between dependent and independent variables, plotting the residuals vs fitted values to check for constant variance and plotting the histogram, boxplot and qq-plot of the residuals to examine whether they are normally distributed.  
+
+The CPR plots follows below. I have also included model 1's CPR plots to compare the effect of including the second degree terms:  
+```{r CPR plots 2 - pollution}
+crPlots(pollution.fit.11)
+crPlots(pollution.fit.1)
+```
+
+The residual vs. fitted plots:  
+```{r homoscedasticity plots 2 - pollution}
+plot(pollution.fit.11, 1)
+plot(pollution.fit.11, 3)
+
+```
+
+The histogram, boxplot and qq-plot of the residuals:  
+```{r normal distribution check 2 - pollution}
+plotNormalHistogram(pollution.fit.11$residuals, main="Histogram of residuals with normal distribution")
+boxplot(pollution.fit.11$residuals)
+plot(pollution.fit.11, 2)
+```
+
+### Discussion:  
+Interpreting the model:  
+
+
+Comment on the assumption checks:  
+
+
+# Excersice 2:  
+Reading the blood-dataset, and defining the age-variable as categorical:  
+```{r reading in the dataset blood}
+blood=read.table("https://www.uio.no/studier/emner/matnat/math/STK4900/data/blood.txt", header=TRUE, colClasses = c("numeric", "factor"))
+
+```
+
+## a)  
+### Method:  
+
+I first inspect the mean, sd, median, IQR, min, max, 1.Qr and 3. Qr per age group. Also a histogram and boxplot of the groups blood pressure are inspected.  
+
+```{r descriptive statistics of the dataset blood}
+setDT(blood)
+blood[, as.list(summary(Bloodpr)), by = age]
+```
+
+The sd:  
+```{r descriptive statistics of the dataset blood - sd}
+blood[ ,list(sd=sd(Bloodpr)), by=age]
+```
+
+The IQR:  
+```{r descriptive statistics of the dataset blood - iqr}
+blood[ ,list(IQR=IQR(Bloodpr)), by=age]
+```
+
+Plots by groups:  
+```{r  descriptive plots of the dataset blood}
+ggplot(blood, aes(x=age, y=Bloodpr)) + 
+    geom_boxplot()
+
+ggplot(blood, aes(x = Bloodpr)) +
+  geom_histogram(fill = "white", colour = "black") +
+  facet_grid(age ~ .)
+```
+
+
+### Discussion:  
+
+
+## b)  
+### Method:  
+A two-way ANOVA is performed to examine whether there is a difference in the expected blood pressure across the groups:  
+```{r ANOVA analysis}
+aov.blood = aov(Bloodpr~age, data=blood)
+summary(aov.blood)
+```
+
+
+### Discussion:  
+The assumptions that are done for a two-way ANOVA, are:  
+* The observations are independent of each other. As the samples are random, and one person cannot be in multiple age groups, I assume that the assumption is fulfilled.  
+
+* The dependent variable should be near-to-normally distributed for each group. This is hard to controll with such a small sample size. The histogram of the groups can be examined, but will not give a conclusive answer. From the histogram in 2a), one can see that the observations in the groups is very spread, only group 1 looks like something that could resemble a normal distribution. I am therefore nut fully sure if the assumption is fulfilled for this specific sample of people, and believe one would need more samples to determine this. But the test is robust to some deviation from the normal distribution, so I continue the analysis of the ANOVA.  
+
+* That the variance for the groups are similar. One can test for this assumption by using for example levenes test. But it needs to be mentioned that the sample size of the dataset is relative small (12 obs. in each group), and it can therefore be expected that the group's variance is unequal. We instead consider the groups' samplesize. As these are the same, I may assume the assumption as fulfilled.  
+
+In the hypothesis test, the null hypothesis states that the average expected blood pressure of all groups is the same. The alternative test states that one or more groups might have a significantly different expected average blood pressure compared to the other groups. A high F-value for 2 and 33 degrees of freedom might indicate that we can reject the null hypothesis, and that one or more groups' expected average outcome differs from the others. According to the performed ANOVA test, a low p-value is returned (p=0.00426) and we can reject the null hypothesis with a 99% significance level. In order to evaluate which of the groups differs from the others, we need to perform a regression analysis and evaluate the expected outcome. This is performed in 2c). As mentioned earlier, based on the boxplot of the groups, it can be expected that at least group 1 and group 3 will differ from each other, but I am less confident whether group 2's expected blood pressure will be significantly different relative to the other groups.  
+
+## c)  
+### Method:  
+In order to compare the expected blood pressure for the groups a regression model is fitted, using the blood pressure as dependent variable and age as independent variable. A treatment-contrast is used with age group 1 as reference, meaning the intercept returns the expected outcome in the reference group, while for group 2 and 3 the expected outcome relative to group 1 is returned (expected blood pressure in group 2 - expected blood pressure in group 1,and expected blood pressure in group 3 - expected blood pressure in group 1).  
+```{r regression of the blood pressure ~ age groups}
+blood.fit = lm(Bloodpr~age, data = blood)
+summary(blood.fit)
+```
+
+### Discussion:  
